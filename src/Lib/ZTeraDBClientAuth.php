@@ -1,0 +1,235 @@
+<?php
+/**
+ * --------------------------------------------------------------------------
+ *  ZTeraDB Client Authentication Module
+ * --------------------------------------------------------------------------
+ *
+ *  This module is responsible for handling the authentication of the client 
+ *  for the ZTeraDB server connection.
+ *
+ *  Key Responsibilities:
+ *  ----------------------
+ *  - Validating the provided configuration for access and secret keys.
+ *  - Generating secure nonces and request tokens for authentication.
+ *  - Providing methods for generating an authentication request with necessary credentials.
+ *
+ *  Requirements:
+ *  -------------
+ *  - `ZTeraDBConfig` should be properly initialized with the required access details.
+ *
+ *  The class interacts with `ZTeraDBConfig` and `RequestTypes` to ensure that 
+ *  secure authentication tokens are generated before connecting to the ZTeraDB server.
+ *
+ * --------------------------------------------------------------------------
+ *  @package     ZTeraDB
+ *  @version     1.0
+ *  @author      ZTeraDB
+ *  @license     https://zteradb.com/licence (SPDX-License-Identifier: Proprietary)
+ * --------------------------------------------------------------------------
+ */
+namespace ZTeraDB\Lib;
+
+// Import necessary classes
+use ZTeraDB\Exceptions\ValueError;
+use ZTeraDB\Lib\RequestTypes;
+use ZTeraDB\Config\ZTeraDBConfig;
+
+
+/**
+ * Class ZTeraDBClientAuth
+ * 
+ * Responsible for generating and managing client authentication details
+ * for ZTeraDB server connection.
+ * 
+ * @package ZTeraDB\Lib
+ */
+class ZTeraDBClientAuth
+{
+  // The access key for the client.
+  private $access_key = "";
+
+  // The access key for the client.
+  private $secret_key = "";
+
+  // The unique client key for identifying the client.
+  private $client_key = "";
+
+  // A unique nonce generated for each authentication.
+  private $nonce = "";
+
+  // The token used for authenticating the request.
+  private $request_token = "";
+
+  // The type of request (e.g., 'connect').
+  private $request_type = "";
+
+  /**
+   * Constructor to initialize the authentication details from the ZTeraDBConfig.
+   * 
+   * This constructor accepts a `ZTeraDBConfig` object and initializes the class with
+   * the necessary authentication keys and parameters. It ensures that the configuration
+   * object is valid before using its properties.
+   * 
+   * @param ZTeraDBConfig $zteradb_config The configuration object that contains the
+   *                                      authentication credentials and other settings.
+   * 
+   * @throws ValueError If the provided `$zteradb_config` is not an instance of `ZTeraDBConfig`.
+   */
+  public function __construct($zteradb_config)
+  {
+    // Ensure that the provided $zteradb_config is an instance of ZTeraDBConfig.
+    if (!$zteradb_config instanceof ZTeraDBConfig) {
+      throw new ValueError("zteradb_config argument must be an instance of ZTeraDBConfig");
+    }
+
+    // The access key for the client.
+    $this->access_key = $zteradb_config->access_key;
+
+    // The secret key for generating the token.
+    $this->secret_key = $zteradb_config->secret_key;
+
+    // Unique client identifier for authentication.
+    $this->client_key = $zteradb_config->client_key;
+  }
+
+  /**
+   * Generates a SHA-256 hash of the given input value.
+   * 
+   * This function takes a string input, applies the SHA-256 hashing algorithm, and 
+   * returns the resulting hash. It is commonly used for generating secure tokens 
+   * or for hashing sensitive data like passwords.
+   *
+   * @param string $value The input string to be hashed.
+   *
+   * @return string The resulting SHA-256 hash of the input string.
+   */
+  public static function get_sha($value)
+  {
+    // Use the SHA-256 algorithm to hash the input value and return the hashed string.
+    return hash('sha256', $value);
+  }
+
+  /**
+   * Generates a unique nonce (number used once) and returns its SHA-256 hash.
+   * 
+   * A nonce is a random number used to ensure the uniqueness of requests, 
+   * preventing replay attacks and ensuring secure communication. This function 
+   * generates a random number between 10,000 and 1,000,000, then hashes it 
+   * using the SHA-256 algorithm to produce a secure, unique token.
+   *
+   * @return string The SHA-256 hash of the generated nonce.
+   */
+  public function generate_nonce()
+  {
+    // Generate a random number between 10,000 and 1,000,000 to be used as a nonce.
+    $nonce = rand(10000, 1000000);
+
+    // Return the SHA-256 hash of the generated nonce.
+    return $this->get_sha($nonce);
+  }
+
+  /**
+   * Sets the nonce value for the current instance.
+   * 
+   * This method assigns the provided nonce to the `nonce` property of the class.
+   * The nonce is typically used for request uniqueness or to prevent replay attacks.
+   *
+   * @param string $nonce The nonce value to be set. This value should be a unique string, 
+   *                      usually generated by the `generate_nonce` method.
+   */
+  private function set_nonce($nonce)
+  {
+    // Assign the provided nonce value to the instance's nonce property.
+    $this->nonce = $nonce;
+  }
+
+  /**
+   * Generates a request token by hashing the combination of the secret key and nonce.
+   * 
+   * This method combines the `secret_key` and `nonce` properties to create a string
+   * and then hashes it using the SHA-256 algorithm to generate a secure, unique request token.
+   * The token is used for authenticating requests to the ZTeraDB server, ensuring that each 
+   * request is secure and cannot be replayed.
+   *
+   * @return string The SHA-256 hash of the concatenated secret key and nonce, which forms the request token.
+   */
+  public function generate_request_token()
+  {
+    // Concatenate the secret key and nonce to form the data for the token.
+    $token_data = $this->secret_key . $this->nonce;
+
+    // Return the SHA-256 hash of the concatenated data as the request token.
+    return $this->get_sha($token_data);
+  }
+
+  /**
+   * Sets the request token for the current instance.
+   * 
+   * This method assigns the provided request token to the `request_token` property of the class.
+   * The request token is used for authentication when making requests to the ZTeraDB server.
+   *
+   * @param string $request_token The request token to be set. This token is typically 
+   *                              generated by the `generate_request_token` method.
+   */
+  public function set_request_token($request_token)
+  {
+    // Assign the provided request token to the instance's request_token property.
+    $this->request_token = $request_token;
+  }
+
+  /**
+   * Sets the request type for the current instance.
+   * 
+   * This method assigns the provided request type to the `request_type` property of the class.
+   * The request type is used to define the type of request (e.g., "connect", "query") 
+   * that will be made to the ZTeraDB server.
+   *
+   * @param string $request_type The type of the request (e.g., "connect", "query").
+   */
+  public function set_request_type($request_type)
+  {
+    // Assign the provided request type to the instance's request_type property.
+    $this->request_type = $request_type;
+  }
+
+  /**
+   * Generates an authentication request with necessary credentials and tokens.
+   * 
+   * This method generates a complete authentication request by:
+   * 1. Generating a unique nonce using `generate_nonce()` and setting it.
+   * 2. Generating a request token using `generate_request_token()` and setting it.
+   * 3. Setting the request type to "CONNECT" (as defined by `RequestTypes::$CONNECT`).
+   * 
+   * It then returns an associative array containing the access key, client key, nonce, 
+   * request token, and request type, which can be used for making an authenticated request 
+   * to the ZTeraDB server.
+   *
+   * @return array An associative array with the authentication details:
+   *               - access_key: The access key for the client.
+   *               - client_key: The client key for the client.
+   *               - nonce: A unique nonce for the request.
+   *               - request_token: The generated request token for authentication.
+   *               - request_type: The type of the request (CONNECT).
+   */
+  public function generate_auth_request()
+  {
+    // Generate a new nonce and set it to the instance.
+    $this->set_nonce($this->generate_nonce());
+
+    // Generate the request token and set it to the instance.
+    $this->set_request_token($this->generate_request_token());
+
+    // Set the request type to "CONNECT".
+    $this->set_request_type(RequestTypes::$CONNECT);
+
+    // Return the authentication request as an associative array.
+    return [
+      "access_key" => $this->access_key,
+      "client_key" => $this->client_key,
+      "nonce" => $this->nonce,
+      "request_token" => $this->request_token,
+      "request_type" => $this->request_type
+    ];
+  }
+}
+?>
