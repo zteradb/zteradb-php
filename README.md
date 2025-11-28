@@ -36,7 +36,7 @@ Run following command to install the ZTeraDB client for php.
 ```sh
 
 # Using composer
-composer require vendor/zteradb-php
+composer require zteradb/zteradb-php
 
 ```
 
@@ -54,7 +54,7 @@ Create a composor.json file with following content.
     }
   ],
   "require": {
-    "zteradb/zteradb-php": "dev-main"
+    "zteradb/zteradb-php": "v1.0"
   }
 }
 
@@ -63,7 +63,7 @@ Create a composor.json file with following content.
 Install the ZTeraDB Client for php.
 ```sh
 
-composer require zteradb/zteradb-php:dev-main
+composer require zteradb/zteradb-php:v1.0
 
 ```
 
@@ -116,4 +116,4 @@ $conn->close();
 
 ## **License**
 
-This project is licensed under the **ZTeraDB** License - see [LICENCE](https://github.com/zteradb/zteradb-php/blob/main/LICENCE) file for details.
+This project is licensed under the **ZTeraDB** License - see [LICENCE](https://github.com/zteradb/zteradb-php/blob/main/LICENCE.md) file for details.
