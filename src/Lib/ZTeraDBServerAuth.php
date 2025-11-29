@@ -136,10 +136,10 @@ class ZTeraDBServerAuth
       $current_time = new \DateTime("now", new \DateTimeZone('UTC'));
 
       // Calculate the difference between current time and token expiration
-      $interval = $current_time->diff($this->access_token_expire);
+      $token_expire_duration = ($current_time->format("Uu") - $this->access_token_expire->format("Uu"));
 
-      // Token is considered expired if more than 15 minutes
-      return ($interval->h > 0 || $interval->i > 15) ? true : false;
+      // Token is considered expired if more than 0 seconds
+      return ($token_expire_duration > 0) ? true : false;
     } catch (\Exception $e) {
       return false;
     }

@@ -41,9 +41,11 @@ namespace ZTeraDB\Connection;
 // Import necessary classes
 use ZTeraDB\Exceptions\ProtocolError;
 use ZTeraDB\Exceptions\QueryComplete;
+use ZTeraDB\Exceptions\ValueError;
 use ZTeraDB\Exceptions\JSONParseError;
 use ZTeraDB\Connection\ZTeraDBDataManager;
 use ZTeraDB\Lib\ResponseTypes;
+use ZTeraDB\Lib\ZTeraDBServerAuth;
 
 
 /**
@@ -59,6 +61,9 @@ class ZTeraDBClientProtocol
 {
   // Socket client resource
   private $client;
+
+  // Server Auth
+  private $server_auth;
 
   /**
    * Constructor: Establishes a TCP socket connection to the ZTeraDB server.
@@ -236,6 +241,45 @@ class ZTeraDBClientProtocol
 
     // Return the parsed response object
     return $response_data;
+  }
+
+  /**
+   * Set server auth information received from the ZTeraDB server.
+   *
+   * This method:
+   *  - Validates the server_auth and throws an exception if it's invalid.
+   *  - Sets the server auth.
+   *
+   * @param object $server_auth SetverAuth object
+   * @throws ValueError If the server_auth is incorrect
+   */
+  public function set_server_auth($server_auth) {
+    // Check if the $server_auth is instance of ZTeraDBServerAuth
+    if(!$server_auth instanceof ZTeraDBServerAuth) {
+      throw new ValueError("Invalid server auth");
+    }
+
+    // Set server auth
+    $this->server_auth = $server_auth;
+  }
+
+  /**
+   * Returns true if the ZTeraDB server auth is not expired else false.
+   *
+   * This method:
+   *  - Checks the server access token expire time
+   *  - Returns true if the access token is not expired else false
+   *
+   * @return boolean true if the access token is not expired else false
+   */
+  public function is_access_token_expired() {
+
+    // Check if the $this->server_auth is instance of ZTeraDBServerAuth
+    if(!$this->server_auth instanceof ZTeraDBServerAuth)
+      return false;
+
+    // Returns true if the server auth is expired else false
+    return $this->server_auth->is_access_token_expired();
   }
 
   /**

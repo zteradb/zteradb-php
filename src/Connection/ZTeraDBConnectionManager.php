@@ -69,9 +69,6 @@ class ZTeraDBConnectionManager
   // ZTeraDBClientAuth instance used to manage the client's authentication process.
   private $client_auth;
 
-  // Handles and stores the server-side authentication details.
-  private $server_auth;
-
   // Holds the ZTeraDB configuration object, including settings like database ID, environment, and authentication keys.
   private $zteradb_config;
 
@@ -179,7 +176,8 @@ class ZTeraDBConnectionManager
       }
 
       // Store server authentication information for later use
-      $this->server_auth = new ZTeraDBServerAuth($response->data);
+      $server_auth = new ZTeraDBServerAuth($response->data);
+      $conn->set_server_auth($server_auth);
     }
 
     // Return the authenticated connection ready for query execution
@@ -205,9 +203,6 @@ class ZTeraDBConnectionManager
 
     // Create a new connection and perform client-server authentication
     $conn = $this->connect();
-
-    // Add the newly created connection to the pool of available (active) connections
-    $this->add_active_connection($conn);
 
     // Return the new connection for immediate usage
     return $conn;
@@ -241,11 +236,6 @@ class ZTeraDBConnectionManager
 
     // Get an available connection from the pool
     $conn = $this->get_connection();
-
-    // If the server access token has expired, reconnect to refresh it
-    if ($this->server_auth->is_access_token_expired()) {
-      $conn = $this->re_connect($conn);
-    }
 
     // If no connection could be acquired, throw an exception
     if (!$conn) {
@@ -337,6 +327,14 @@ class ZTeraDBConnectionManager
     if (!empty($this->active_connections)) {
       // Reuse the last available connection
       $conn = array_pop($this->active_connections);
+
+      // If the server access token has expired, reconnect to refresh it
+      if ($conn->is_access_token_expired()) {
+        $conn = $this->re_connect($conn);
+
+        // Add the newly created connection to the pool of running connections
+        $this->add_running_connection($conn);
+      }
     } else {
       // No active connections available, create a new one
       $conn = $this->connect();
@@ -348,7 +346,7 @@ class ZTeraDBConnectionManager
     }
 
     // Mark the connection as currently running using its unique object hash
-    $this->running_connections[spl_object_hash($conn)] = $conn;
+    $this->add_running_connection($conn);
 
     // Return the connection to the caller
     return $conn;
