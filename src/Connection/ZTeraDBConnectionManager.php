@@ -32,9 +32,6 @@
 
 namespace ZTeraDB\Connection;
 
-require_once __DIR__ . "/../Lib/ZTeraDBClientAuth.php";
-require_once __DIR__ . "/../Lib/ZTeraDBServerAuth.php";
-
 // Import necessary classes
 // Import necessary classes for exception handling, config, and query handling
 use ZTeraDB\Exceptions\ValueError;
@@ -139,7 +136,10 @@ class ZTeraDBConnectionManager
       for ($i = 0; $i < $this->zteradb_config->options->connection_pool->get_min(); $i++) {
 
         // Establish a new connection and add it to the active pool
-        $this->connect();
+        $conn = $this->connect();
+        if($conn) {
+          $this->add_active_connection($conn);
+        }
       }
     }
   }
@@ -243,7 +243,7 @@ class ZTeraDBConnectionManager
     $conn = $this->get_connection();
 
     // If the server access token has expired, reconnect to refresh it
-    if (!$this->server_auth->is_access_token_expired()) {
+    if ($this->server_auth->is_access_token_expired()) {
       $conn = $this->re_connect($conn);
     }
 
@@ -310,7 +310,7 @@ class ZTeraDBConnectionManager
     }
 
     // Add the connection back to the active_connections pool for reuse
-    $this->active_connections[\spl_object_hash($connection)] = $connection;
+    $this->add_active_connection($connection);
   }
 
   /**
